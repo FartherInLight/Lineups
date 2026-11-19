@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Valorant Lineup Organizer</title>
+<style>
+:root {
+  --bg: #0f1115; --panel: #171a21; --panel2: #1f232c; --border: #2a2f3a;
+  --text: #eef0f3; --muted: #9aa2b1; --accent: #ff4655; --accent2: #ff6b76;
+  --radius: 10px;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f5f7; --panel: #ffffff; --panel2: #eef0f3;
+    --border: #dde1e7; --text: #16181d; --muted: #5d6472;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f4f5f7; --panel: #ffffff; --panel2: #eef0f3;
+  --border: #dde1e7; --text: #16181d; --muted: #5d6472;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100%; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+header {
+  position: sticky; top: 0; top: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 14px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+header h1 { font-size: 17px; margin: 0; flex: 1; min-width: 160px; }
+header h1 span { color: var(--accent); }
+button {
+  font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel2); color: var(--text); padding: 8px 12px;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover { background: var(--accent2); }
+button:hover { filter: brightness(1.1); }
+button.icon { padding: 6px 9px; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.filters {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.filters input, .filters select {
+  font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--text);
+}
+.filters input[type="text"] { flex: 1; min-width: 160px; }
+.sitetabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
+.sitetabs button {
+  border: none; background: transparent; padding: 6px 12px; border-radius: 6px; color: var(--muted);
+}
+.sitetabs button.active { background: var(--accent); color: #fff; }
+.sitepick { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.sitepick button { padding: 6px 12px; border-radius: 100px; }
+.sitepick button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.card .thumb {
+  width: 100%; aspect-ratio: 16/9; background: var(--panel2); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.card .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card .thumb .ph { color: var(--muted); font-size: 12px; }
+.card .body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.tagrow { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 100px; background: var(--panel2);
+  border: 1px solid var(--border); color: var(--muted);
+}
+.tag.map { color: var(--accent2); border-color: var(--accent2); }
+.card h3 { margin: 2px 0 0; font-size: 14px; }
+.card p.notes { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); max-height: 3.6em; overflow: hidden; }
+.card .actions { display: flex; gap: 6px; margin-top: 8px; }
+.card .actions button { flex: 1; font-size: 12.5px; padding: 6px; }
+
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none;
+  align-items: flex-start; justify-content: center; z-index: 100; padding: 24px 12px;
+  padding-top: calc(24px + env(safe-area-inset-top, 0px)); overflow-y: auto;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  width: 100%; max-width: 480px; padding: 18px; margin-bottom: 24px;
+}
+.modal h2 { margin-top: 0; font-size: 16px; }
+.modal label { display: block; font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; }
+.modal input[type="text"], .modal select, .modal textarea {
+  width: 100%; font: inherit; padding: 9px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel2); color: var(--text);
+}
+.modal textarea { min-height: 60px; resize: vertical; }
+.modal .imgprev { margin-top: 8px; max-width: 100%; border-radius: 8px; display: none; }
+.modal .imgprev.show { display: block; }
+.pastezone {
+  margin-top: 6px; border: 2px dashed var(--border); border-radius: 8px;
+  padding: 16px; text-align: center; font-size: 12.5px; color: var(--muted);
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
+}
+.pastezone:hover, .pastezone:focus { border-color: var(--accent); color: var(--text); outline: none; }
+.pastezone.got { border-color: var(--accent); border-style: solid; color: var(--accent2); }
+.modal .row { display: flex; gap: 8px; }
+.modal .row > div { flex: 1; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.lightbox {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none;
+  align-items: center; justify-content: center; z-index: 200; padding: 20px;
+}
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+footer { text-align: center; color: var(--muted); font-size: 11.5px; padding: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VAL<span>ORANT</span> Lineups</h1>
+  <button class="icon" id="exportBtn" title="Export backup">Export</button>
+  <button class="icon" id="importBtn" title="Import backup">Import</button>
+  <input type="file" id="importFile" accept="application/json" style="display:none">
+  <button class="primary" id="addBtn">+ Add Lineup</button>
+</header>
+
+<main>
+  <div class="filters">
+    <input type="text" id="searchInput" placeholder="Search notes, agent, ability...">
+    <select id="mapFilter"><option value="">All Maps</option></select>
+    <select id="agentFilter"><option value="">All Agents</option></select>
+    <div class="sitetabs" id="siteFilterTabs">
+      <button data-site="" class="active">All Sites</button>
+    </div>
+  </div>
+  <div id="grid" class="grid"></div>
+  <div id="emptyMsg" class="empty" style="display:none;">No lineups saved yet. Click "+ Add Lineup" to save your first one.</div>
+</main>
+
+<footer>Saved locally in this browser · use Export to back up or move to another device</footer>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add Lineup</h2>
+    <input type="hidden" id="editId">
+    <div class="row">
+      <div>
+        <label>Map</label>
+        <input type="text" id="fMap" list="mapList" placeholder="e.g. Ascent">
+        <datalist id="mapList"></datalist>
+      </div>
+      <div>
+        <label>Site</label>
+        <input type="hidden" id="fSite" value="">
+        <div class="sitepick" id="siteModalPick">
+          <button type="button" data-site="A">A</button>
+          <button type="button" data-site="B">B</button>
+          <button type="button" data-site="C">C</button>
+          <button type="button" data-site="Misc">Misc</button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Agent</label>
+        <input type="text" id="fAgent" list="agentList" placeholder="e.g. Viper">
+        <datalist id="agentList"></datalist>
+      </div>
+      <div>
+        <label>Ability</label>
+        <input type="text" id="fAbility" placeholder="e.g. Snake Bite">
+      </div>
+    </div>
+    <label>Title (optional)</label>
+    <input type="text" id="fTitle" placeholder="e.g. Post-plant smoke from spawn">
+    <label>Notes / execution steps</label>
+    <textarea id="fNotes" placeholder="Stand here, aim at the crack in the wall, jump-throw..."></textarea>
+    <label>Screenshot</label>
+    <div class="pastezone" id="pasteZone" tabindex="0">
+      <span id="pasteZoneText">Click here, then paste (Ctrl+V) a screenshot &mdash; or use the file picker below</span>
+    </div>
+    <input type="file" id="fImage" accept="image/*">
+    <img id="fImagePreview" class="imgprev">
+    <div class="modal-actions">
+      <button id="cancelBtn">Cancel</button>
+      <button class="primary" id="saveBtn">Save</button>
+      <button class="primary" id="saveAddBtn" title="Save this one and start the next">Save + Add Another</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox"><img id="lightboxImg" src=""></div>
+
+<script>
+const MAPS = ["Abyss","Ascent","Bind","Breeze","Corrode","Fracture","Haven","Icebox","Lotus","Pearl","Split","Sunset"];
+const AGENTS = ["Astra","Brimstone","Breach","Chamber","Clove","Cypher","Deadlock","Fade","Gekko","Harbor","Iso","Jett","KAY/O","Killjoy","Neon","Omen","Phoenix","Raze","Reyna","Sage","Skye","Sova","Tejo","Viper","Vyse","Waylay","Yoru"];
+
+const mapListEl = document.getElementById('mapList');
+const agentListEl = document.getElementById('agentList');
+const mapFilterEl = document.getElementById('mapFilter');
+const agentFilterEl = document.getElementById('agentFilter');
+MAPS.forEach(m => {
+  mapListEl.innerHTML += `<option value="${m}">`;
+  mapFilterEl.innerHTML += `<option value="${m}">${m}</option>`;
+});
+AGENTS.forEach(a => {
+  agentListEl.innerHTML += `<option value="${a}">`;
+  agentFilterEl.innerHTML += `<option value="${a}">${a}</option>`;
+});
+
+const SITES = ["A","B","C","Misc"];
+
+// --- site filter tabs (in the top filter bar) ---
+const siteFilterTabsEl = document.getElementById('siteFilterTabs');
+SITES.forEach(s => {
+  const btn = document.createElement('button');
+  btn.dataset.site = s;
+  btn.textContent = s;
+  siteFilterTabsEl.appendChild(btn);
+});
+let siteFilter = '';
+siteFilterTabsEl.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  siteFilter = btn.dataset.site;
+  [...siteFilterTabsEl.children].forEach(b => b.classList.toggle('active', b === btn));
+  render();
+});
+
+// --- site picker inside the add/edit modal (single-select, click again to clear) ---
+const siteModalPick = document.getElementById('siteModalPick');
+const fSiteHidden = document.getElementById('fSite');
+siteModalPick.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const already = btn.classList.contains('active');
+  [...siteModalPick.children].forEach(b => b.classList.remove('active'));
+  if (!already) {
+    btn.classList.add('active');
+    fSiteHidden.value = btn.dataset.site;
+  } else {
+    fSiteHidden.value = '';
+  }
+});
+function setModalSite(site) {
+  fSiteHidden.value = site || '';
+  [...siteModalPick.children].forEach(b => b.classList.toggle('active', b.dataset.site === site));
+}
+
+let lineups = [];
+try {
+  lineups = JSON.parse(localStorage.getItem('valo-lineups') || '[]');
+} catch (e) { lineups = []; }
+
+// First-ever visit on this browser (no local data yet)? Try loading a bundled
+// lineups.json that sits next to this HTML file, so the site isn't empty.
+async function loadBundledDefaults() {
+  try {
+    const res = await fetch('./lineups.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const bundled = await res.json();
+    if (Array.isArray(bundled) && bundled.length) {
+      // merge: add any lineup from the file that this browser doesn't already have
+      const have = new Set(lineups.map(l => l.id));
+      const fresh = bundled.filter(l => !have.has(l.id));
+      if (fresh.length) {
+        lineups = lineups.concat(fresh);
+        save();
+        render();
+      }
+    }
+  } catch (e) {
+    // no lineups.json present, or not running from a server that allows fetch — fine, just stays empty
+  }
+}
+
+function save() {
+  try { localStorage.setItem('valo-lineups', JSON.stringify(lineups)); }
+  catch (e) { alert('Could not save — storage may be full. Try removing an old screenshot.'); }
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const mapF = mapFilterEl.value;
+  const agentF = agentFilterEl.value;
+
+  const filtered = lineups.filter(l => {
+    if (mapF && l.map !== mapF) return false;
+    if (agentF && l.agent !== agentF) return false;
+    if (siteFilter && l.site !== siteFilter) return false;
+    if (search) {
+      const hay = [l.map,l.site,l.agent,l.ability,l.title,l.notes].join(' ').toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  }).sort((a,b) => (a.map||'').localeCompare(b.map||'') || (a.agent||'').localeCompare(b.agent||''));
+
+  document.getElementById('emptyMsg').style.display = lineups.length === 0 ? 'block' : 'none';
+  grid.innerHTML = filtered.map(l => `
+    <div class="card" data-id="${l.id}">
+      <div class="thumb" onclick="openLightbox('${l.id}')">
+        ${l.image ? `<img src="${l.image}" alt="">` : `<span class="ph">No screenshot</span>`}
+      </div>
+      <div class="body">
+        <div class="tagrow">
+          ${l.map ? `<span class="tag map">${escapeHtml(l.map)}</span>` : ''}
+          ${l.site ? `<span class="tag">${escapeHtml(l.site)}</span>` : ''}
+          ${l.agent ? `<span class="tag">${escapeHtml(l.agent)}</span>` : ''}
+        </div>
+        <h3>${escapeHtml(l.title) || escapeHtml(l.ability) || 'Lineup'}</h3>
+        ${l.ability && l.title ? `<div class="tag" style="align-self:flex-start;">${escapeHtml(l.ability)}</div>` : ''}
+        ${l.notes ? `<p class="notes">${escapeHtml(l.notes)}</p>` : ''}
+        <div class="actions">
+          <button onclick="editLineup('${l.id}')">Edit</button>
+          <button onclick="deleteLineup('${l.id}')">Delete</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('searchInput').addEventListener('input', render);
+mapFilterEl.addEventListener('change', render);
+agentFilterEl.addEventListener('change', render);
+
+const overlay = document.getElementById('overlay');
+const fImage = document.getElementById('fImage');
+const fImagePreview = document.getElementById('fImagePreview');
+let currentImageData = '';
+
+function openModal(edit) {
+  document.getElementById('modalTitle').textContent = edit ? 'Edit Lineup' : 'Add Lineup';
+  overlay.classList.add('open');
+  setTimeout(() => pasteZone.focus(), 50);
+}
+function closeModal() {
+  overlay.classList.remove('open');
+  document.getElementById('editId').value = '';
+  document.getElementById('fMap').value = '';
+  setModalSite('');
+  document.getElementById('fAgent').value = '';
+  document.getElementById('fAbility').value = '';
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fNotes').value = '';
+  fImage.value = '';
+  fImagePreview.classList.remove('show');
+  pasteZone.classList.remove('got');
+  pasteZoneText.textContent = 'Click here, then paste (Ctrl+V) a screenshot — or use the file picker below';
+  currentImageData = '';
+}
+
+document.getElementById('addBtn').addEventListener('click', () => openModal(false));
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+fImage.addEventListener('change', () => {
+  const file = fImage.files[0];
+  if (!file) return;
+  loadImageFile(file);
+});
+
+function loadImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    currentImageData = reader.result;
+    fImagePreview.src = currentImageData;
+    fImagePreview.classList.add('show');
+    pasteZone.classList.add('got');
+    pasteZoneText.textContent = 'Screenshot added \u2014 click to replace, or paste a new one';
+  };
+  reader.readAsDataURL(file);
+}
+
+const pasteZone = document.getElementById('pasteZone');
+const pasteZoneText = document.getElementById('pasteZoneText');
+pasteZone.addEventListener('click', () => pasteZone.focus());
+pasteZone.addEventListener('paste', handlePasteEvent);
+document.addEventListener('paste', e => {
+  if (!overlay.classList.contains('open')) return;
+  // avoid double-handling if the pastezone's own listener already caught it
+  if (e.target === pasteZone) return;
+  handlePasteEvent(e);
+});
+function handlePasteEvent(e) {
+  const items = (e.clipboardData || window.clipboardData)?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) {
+        loadImageFile(file);
+        e.preventDefault();
+      }
+      break;
+    }
+  }
+}
+
+function saveCurrentEntry() {
+  const id = document.getElementById('editId').value || (Date.now() + '-' + Math.random().toString(36).slice(2));
+  const entry = {
+    id,
+    map: document.getElementById('fMap').value.trim(),
+    site: document.getElementById('fSite').value.trim(),
+    agent: document.getElementById('fAgent').value.trim(),
+    ability: document.getElementById('fAbility').value.trim(),
+    title: document.getElementById('fTitle').value.trim(),
+    notes: document.getElementById('fNotes').value.trim(),
+    image: currentImageData
+  };
+  if (!entry.map && !entry.agent && !entry.title) {
+    alert('Add at least a map or agent so you can find this later.');
+    return false;
+  }
+  const existingIdx = lineups.findIndex(l => l.id === id);
+  if (existingIdx >= 0) {
+    if (!entry.image) entry.image = lineups[existingIdx].image;
+    lineups[existingIdx] = entry;
+  } else {
+    lineups.push(entry);
+  }
+  save();
+  render();
+  return true;
+}
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  if (saveCurrentEntry()) closeModal();
+});
+
+document.getElementById('saveAddBtn').addEventListener('click', () => {
+  // keep map/agent (usually the same for a batch), clear title/notes/image so the next paste starts clean
+  if (!saveCurrentEntry()) return;
+  document.getElementById('editId').value = '';
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fAbility').value = '';
+  document.getElementById('fNotes').value = '';
+  fImage.value = '';
+  fImagePreview.classList.remove('show');
+  pasteZone.classList.remove('got');
+  pasteZoneText.textContent = 'Click here, then paste (Ctrl+V) the next screenshot';
+  currentImageData = '';
+  document.getElementById('modalTitle').textContent = 'Add Lineup';
+  pasteZone.focus();
+});
+
+function editLineup(id) {
+  const l = lineups.find(x => x.id === id);
+  if (!l) return;
+  document.getElementById('editId').value = l.id;
+  document.getElementById('fMap').value = l.map || '';
+  setModalSite(l.site || '');
+  document.getElementById('fAgent').value = l.agent || '';
+  document.getElementById('fAbility').value = l.ability || '';
+  document.getElementById('fTitle').value = l.title || '';
+  document.getElementById('fNotes').value = l.notes || '';
+  currentImageData = l.image || '';
+  if (l.image) {
+    fImagePreview.src = l.image;
+    fImagePreview.classList.add('show');
+    pasteZone.classList.add('got');
+    pasteZoneText.textContent = 'Screenshot added — click to replace, or paste a new one';
+  }
+  openModal(true);
+}
+
+function deleteLineup(id) {
+  if (!confirm('Delete this lineup?')) return;
+  lineups = lineups.filter(l => l.id !== id);
+  save();
+  render();
+}
+
+function openLightbox(id) {
+  const l = lineups.find(x => x.id === id);
+  if (!l || !l.image) return;
+  document.getElementById('lightboxImg').src = l.image;
+  document.getElementById('lightbox').classList.add('open');
+}
+document.getElementById('lightbox').addEventListener('click', () => {
+  document.getElementById('lightbox').classList.remove('open');
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(lineups, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'valorant-lineups-backup.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', () => {
+  const file = document.getElementById('importFile').files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const imported = JSON.parse(reader.result);
+      if (!Array.isArray(imported)) throw new Error('bad format');
+      const existingIds = new Set(lineups.map(l => l.id));
+      imported.forEach(l => { if (!existingIds.has(l.id)) lineups.push(l); });
+      save();
+      render();
+      alert('Import complete.');
+    } catch (e) {
+      alert('Could not read that file — make sure it\'s a backup exported from this app.');
+    }
+  };
+  reader.readAsText(file);
+});
+
+render();
+loadBundledDefaults();
+</script>
+</body>
+</html>
